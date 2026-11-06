@@ -1,0 +1,41 @@
+# Built application files
+*.apk
+*.apks
+*.aab
+
+# Generated files
+bin/
+gen/
+out/
+.gradle/
+build/
+
+# Local configuration file (sdk.dir, sign keys, etc.)
+local.properties
+
+# Project cache files
+.cache/
+.DS_Store
+*.iml
+.idea/
+.fleet/
+.metals/
+
+# Log files
+*.log
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Jetpack Compose Preview state
+.preview/
+
+# Profiler
+*.hprof
+
+# Google Cloud Messaging / Firebase
+google-services.json
+
+# Keystore files (Bảo mật chữ ký ứng dụng)
+*.jks
+*.keystore
