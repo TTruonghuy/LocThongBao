@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LỚP 0: WHITELIST (An toàn tuyệt đối - Giữ lại ngay) -->
+    <string-array name="whitelist_keywords">
+        <item>otp</item>
+        <item>mã xác thực</item>
+        <item>ma xac thuc</item>
+        <item>mã xác nhận</item>
+        <item>ma xac nhan</item>
+        <item>smart otp</item>
+        <item>xác minh</item>
+        <item>xac minh</item>
+        <item>đăng nhập</item>
+        <item>dang nhap</item>
+        <item>biến động số dư</item>
+        <item>bien dong so du</item>
+        <item>số dư tài khoản</item>
+        <item>chuyển khoản</item>
+        <item>chuyen khoan</item>
+        <item>thanh toán thành công</item>
+        <item>thanh toan thanh cong</item>
+        <item>nhận được</item>
+        <item>nhan duoc</item>
+        <item>đã trừ</item>
+        <item>da tru</item>
+        <item>cộng tiền</item>
+        <item>cong tien</item>
+        <item>đơn hàng</item>
+        <item>don hang</item>
+        <item>giao hàng thành công</item>
+        <item>giao hang thanh cong</item>
+        <item>đang giao hàng</item>
+        <item>dang giao hang</item>
+        <item>vận chuyển</item>
+        <item>van chuyen</item>
+        <item>shipper</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - THẺ ĐỊNH DANH RÁC -->
+    <string-array name="blacklist_explicit">
+        <item>[qc]</item>
+        <item>[quảng cáo]</item>
+        <item>[ad]</item>
+        <item>[spam]</item>
+        <item>[tb]</item>
+        <item>[thông báo]</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - TMĐT & MUA SẮM -->
+    <string-array name="blacklist_ecommerce">
+        <item>voucher</item>
+        <item>lịch sử</item>
+        <item>giá</item>
+        <item>ngay</item>
+        <item>freeship</item>
+        <item>mã giảm giá</item>
+        <item>hoàn xu</item>
+        <item>flash sale</item>
+        <item>săn sale</item>
+        <item>deal hot</item>
+        <item>khung giờ vàng</item>
+        <item>mở ví ngay</item>
+        <item>trúng thưởng</item>
+        <item>quà tặng</item>
+        <item>chốt đơn</item>
+        <item>săn ngay</item>
+        <item>mua ngay</item>
+        <item>giảm sốc</item>
+        <item>đồng giá</item>
+        <item>siêu hội</item>
+        <item>độc quyền</item>
+        <item>tặng</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - TÀI CHÍNH & VAY VỐN -->
+    <string-array name="blacklist_finance">
+        <item>vay vốn</item>
+        <item>giải ngân</item>
+        <item>hỗ trợ tài chính</item>
+        <item>mở thẻ tín dụng</item>
+        <item>hạn mức</item>
+        <item>tặng ngay</item>
+        <item>đầu tư</item>
+        <item>sinh lời</item>
+        <item>bảo hiểm nhân thọ</item>
+        <item>mở tài khoản số đẹp</item>
+        <item>nhận ngay tiền mặt</item>
+        <item>vay tiêu dùng</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - VIỄN THÔNG & NHÀ MẠNG -->
+    <string-array name="blacklist_telecom">
+        <item>viettelplus</item>
+        <item>đổi sim</item>
+        <item>nâng cấp 5g</item>
+        <item>đăng ký gói</item>
+        <item>data khủng</item>
+        <item>miễn phí gọi</item>
+        <item>cước phí</item>
+        <item>nhắn ngay</item>
+        <item>rinh quà</item>
+        <item>tài khoản của quý khách</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - FOMO / THÔI THÚC KHẨN CẤP -->
+    <string-array name="blacklist_urgency">
+        <item>chỉ hôm nay</item>
+        <item>duy nhất hôm nay</item>
+        <item>nhanh tay lên</item>
+        <item>số lượng có hạn</item>
+        <item>kết thúc sớm</item>
+        <item>click ngay</item>
+        <item>bấm vào đây</item>
+        <item>đừng bỏ lỡ</item>
+        <item>bật</item>
+        <item>tắt</item>
+    </string-array>
+
+    <!-- LỚP 5: BLACKLIST - MẠNG XÃ HỘI & CÂU TƯƠNG TÁC -->
+    <string-array name="blacklist_social">
+        <item>có thể bạn biết</item>
+        <item>gợi ý kết bạn</item>
+        <item>bài viết mới từ</item>
+        <item>đã đăng một video</item>
+        <item>kỷ niệm ngày này</item>
+        <item>đề xuất cho bạn</item>
+        <item>xem video mới</item>
+        <item>có gì mới hôm nay</item>
+        <item>bắt đầu theo dõi</item>
+        <item>lượt thích mới</item>
+        <item>bình luận mới về</item>
+        <item>đã thêm vào tin của họ</item>
+    </string-array>
+</resources>
