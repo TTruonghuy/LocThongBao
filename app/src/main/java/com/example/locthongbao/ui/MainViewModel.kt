@@ -5,20 +5,58 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.locthongbao.data.local.AppDatabase
 import com.example.locthongbao.data.local.NotificationEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Lấy thủ thư DAO từ tủ sắt AppDatabase
     private val dao = AppDatabase.getDatabase(application).notificationDao()
 
-    // Chuyển chuông báo động (Flow) từ database thành StateFlow để giao diện Compose quan sát trực tiếp
     val notifications: StateFlow<List<NotificationEntity>?> = dao.getAllNotifications()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
+
+    // Danh sách thông báo cho qua (chưa bị chặn)
+    val allowedNotifications: StateFlow<List<NotificationEntity>?> = notifications
+        .map { list -> list?.filter { !it.isFiltered } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    // Danh sách thông báo bị chặn
+    val blockedNotifications: StateFlow<List<NotificationEntity>?> = notifications
+        .map { list -> list?.filter { it.isFiltered } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.cleanSystemGarbage()
+        }
+    }
+
+
+    fun clearAllowedNotifications() {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.clearAllowedNotifications()
+        }
+    }
+
+    fun clearBlockedNotifications() {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.clearBlockedNotifications()
+        }
+    }
 }

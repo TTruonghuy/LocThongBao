@@ -54,6 +54,8 @@ object NotificationFilter {
             }
             if (item.isGroupSummary) return FilterResult(FilterCategory.IGNORED, "Thông báo tổng")
 
+
+
             // 2. Lớp Whitelist (An toàn tuyệt đối) -> Xếp vào PASSED (Màu 3)
             val safeKeywords = context.resources.getStringArray(R.array.whitelist_keywords)
             if (safeKeywords.any { combinedText.contains(it) }) {

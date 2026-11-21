@@ -53,23 +53,21 @@
         <item>giá</item>
         <item>ngay</item>
         <item>freeship</item>
-        <item>mã giảm giá</item>
         <item>hoàn xu</item>
         <item>flash sale</item>
-        <item>săn sale</item>
+        <item>săn</item>
         <item>deal hot</item>
         <item>khung giờ vàng</item>
         <item>mở ví ngay</item>
         <item>trúng thưởng</item>
         <item>quà tặng</item>
         <item>chốt đơn</item>
-        <item>săn ngay</item>
-        <item>mua ngay</item>
-        <item>giảm sốc</item>
-        <item>đồng giá</item>
+        <item>mua</item>
+        <item>giảm</item>
         <item>siêu hội</item>
         <item>độc quyền</item>
         <item>tặng</item>
+        <item>đăng nhập</item>
     </string-array>
 
     <!-- LỚP 5: BLACKLIST - TÀI CHÍNH & VAY VỐN -->

@@ -6,9 +6,8 @@ plugins {
 
 android {
     namespace = "com.example.locthongbao"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
+    compileSdkMinor = 2
 
     defaultConfig {
         applicationId = "com.example.locthongbao"
@@ -41,6 +40,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.text)
@@ -51,6 +51,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:1.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:1.8.0")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -21,6 +21,32 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications WHERE notificationKey = :key ORDER BY postTime DESC LIMIT 1")
     suspend fun latestByKey(key: String): NotificationEntity?
 
+    @Query( """
+        DELETE FROM notifications
+        WHERE packageName IN (
+        'com.android.updater', 
+        'com.xiaomi.discover', 
+        'com.miui.systemAdSolution', 
+        'com.android.providers.downloads'
+        )
+        OR (
+        title = '' AND text = ''
+        )
+    """)
+    suspend fun cleanSystemGarbage()
+
     @Update
     suspend fun update(n: NotificationEntity)
+
+
+
+
+    @Query("DELETE FROM notifications WHERE isFiltered = 0")
+    suspend fun clearAllowedNotifications()
+
+    @Query("DELETE FROM notifications WHERE isFiltered = 1")
+    suspend fun clearBlockedNotifications()
+
+
+
 }

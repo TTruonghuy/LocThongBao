@@ -1,7 +1,6 @@
 package com.example.locthongbao.data.service
 
 import android.app.Notification
-import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -21,11 +20,11 @@ import android.app.NotificationManager
 import android.content.Context
 import com.example.locthongbao.domain.model.FilterCategory
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.toString
 
 
 class NotiListenerService : NotificationListenerService () {
@@ -38,6 +37,20 @@ class NotiListenerService : NotificationListenerService () {
         private val _isServiceRunning = MutableStateFlow(false)
         val isServiceRunning: StateFlow<Boolean> = _isServiceRunning
 
+        @Volatile var lastAdResult: String? = null          // hiện lên màn hình debug
+
+        private val AD_SOURCES = setOf(                     // khớp CHÍNH XÁC, không dùng contains
+            "com.miui.msa.global", "com.miui.systemadsolution", "com.xiaomi.mipicks"
+        )
+        private val BLOCKABLE_PACKAGES = setOf(
+            "com.shopee.vn", "com.lazada.android", "com.ss.android.ugc.trill"
+        )
+        private val NEVER_BLOCK_CATEGORIES = setOf(
+            Notification.CATEGORY_CALL, Notification.CATEGORY_MESSAGE, Notification.CATEGORY_EMAIL,
+            Notification.CATEGORY_ALARM, Notification.CATEGORY_REMINDER, Notification.CATEGORY_EVENT,
+            Notification.CATEGORY_NAVIGATION, Notification.CATEGORY_TRANSPORT
+        )
+
         fun reviveService(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 try {
@@ -49,10 +62,16 @@ class NotiListenerService : NotificationListenerService () {
             }
         }
     }
-    private val errorHandler = CoroutineExceptionHandler { _, e ->
-        ServiceDebug.lastError = "DB: " + e.stackTraceToString().take(600)
-    }
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + errorHandler)
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() )
+
+    private fun isBlockedAdOrMsaPackage(p: String?) = p?.trim()?.lowercase() in AD_SOURCES
+
+    private fun canBlock(sbn: StatusBarNotification): Boolean =
+        sbn.isClearable &&
+                sbn.packageName in BLOCKABLE_PACKAGES &&
+                sbn.notification.category !in NEVER_BLOCK_CATEGORIES
+
 
     override fun onListenerConnected() {
         super.onListenerConnected()
@@ -71,7 +90,7 @@ class NotiListenerService : NotificationListenerService () {
             createNotificationChannel()
             startForegroundServiceNotification()
         } catch (e: Exception) {
-            ServiceDebug.lastError = "FGS: " + e.stackTraceToString().take(600)
+            //ServiceDebug.lastError = "FGS: " + e.stackTraceToString().take(600)
         }
     }
 
@@ -106,18 +125,48 @@ class NotiListenerService : NotificationListenerService () {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         if (sbn == null || sbn.packageName == packageName) return   // bỏ thông báo của chính app
-        ServiceDebug.postedCount++
+        if (isBlockedAdOrMsaPackage(sbn.packageName)) {
+            handleAdSource(sbn)
+            return
+        }
+
+
+        val flags = sbn.notification.flags
+        // Thông báo tóm tắt nhóm: không lưu, nhưng dọn nếu nhóm đã hết thông báo có nội dung
+        if ((flags and Notification.FLAG_GROUP_SUMMARY) != 0) {
+            scope.launch { delay(300); cleanupOrphanSummaries(sbn.packageName) }
+            return
+        }
+
+        //  Rác cấu trúc
+        if (!sbn.isClearable || (flags and Notification.FLAG_ONGOING_EVENT) != 0) return
+
+        //ChannelCollector.record(sbn.packageName, sbn.notification.channelId)
+        val extras = sbn.notification.extras
+        val title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.trim() ?: ""
+        val text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
+        if (title.isEmpty() && text.isEmpty()) return
         try {
-            if (DEBUG_TOAST){
-                android.widget.Toast.makeText(
-                    applicationContext,
-                    "Bắt được thông báo từ: ${sbn.packageName}",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
             handle(sbn)
         } catch (e: Exception) {
-            ServiceDebug.lastError = "POST: " + e.stackTraceToString().take(600)
+            android.util.Log.e(TAG, "Error handling notification from ${sbn.packageName}", e)
+        }
+    }
+
+
+    private fun handleAdSource(sbn: StatusBarNotification) {
+        scope.launch {
+            val sb = StringBuilder("AD ${sbn.packageName} clearable=${sbn.isClearable} flags=${sbn.notification.flags}")
+            if (sbn.isClearable) {
+                cancelNotification(sbn.key)
+                delay(800)
+                val still = getActiveNotifications()?.any { it.key == sbn.key } == true
+                sb.append(" -> cancel: ").append(if (still) "VẪN CÒN TRONG KHAY" else "ĐÃ MẤT")
+            } else sb.append(" -> không vuốt bỏ được")
+            lastAdResult = sb.toString()
+            android.util.Log.d(TAG, sb.toString())
+            delay(300)
+            cleanupOrphanSummaries(sbn.packageName)
         }
     }
 
@@ -169,24 +218,22 @@ class NotiListenerService : NotificationListenerService () {
 
             // Đánh giá thông báo qua bộ lọc 3 nhóm
             val result = NotificationFilter.evaluate(applicationContext, entity)
-
             when (result.category){
                 FilterCategory.IGNORED ->{
                     return
                 }
                 FilterCategory.SPAM -> {
-                    if(sbn.isClearable) {
-                        cancelNotification(sbn.key)
-                    }
-                    val finalEntity = entity.copy(
-                        isFiltered = true,
-                        filterReason = result.reason
-                    )
-                    scope.launch  (Dispatchers.IO) {
-                    AppDatabase.getDatabase(applicationContext).notificationDao()
-                        .insertNotification(finalEntity)
+                    scope.launch(Dispatchers.IO) {
+                        save(entity.copy(isFiltered = true, filterReason = result.reason))
+                        if (canBlock(sbn)) {
+                            delay(200)
+                            cancelNotification(sbn.key)
+                            delay(300)
+                            cleanupOrphanSummaries(sbn.packageName)
+                        }
                     }
                 }
+
                 FilterCategory.PASSED -> {
 
                     // Nhóm 3: Hợp lệ -> Lưu DB với cờ isFiltered = false
@@ -195,39 +242,72 @@ class NotiListenerService : NotificationListenerService () {
                         filterReason = result.reason
                     )
                     scope.launch(Dispatchers.IO){
-                        AppDatabase.getDatabase(applicationContext).notificationDao()
-                            .insertNotification(finalEntity)
+                        save(finalEntity)
                     }
-
                 }
-
-
-
-
-
-
-
         }
 
+    }
+
+    private fun hasText(s: StatusBarNotification): Boolean {
+        val e = s.notification.extras
+        return !e.getCharSequence(Notification.EXTRA_TITLE).isNullOrBlank() ||
+                !e.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank()
+    }
+
+    private fun cleanupOrphanSummaries(pkg: String) {
+        if (pkg !in BLOCKABLE_PACKAGES && pkg !in AD_SOURCES) return
+        val actives = getActiveNotifications()?.filter { it.packageName == pkg } ?: return
+        fun isSummary(s: StatusBarNotification) =
+            (s.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0
+
+        val hasContent = actives.any { !isSummary(it) && hasText(it) }
+        if (!hasContent) {
+            actives.filter { (isSummary(it) || !hasText(it)) && it.isClearable }
+                .forEach { cancelNotification(it.key) }
+        }
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        super.onNotificationRemoved(sbn)
+        val pkg = sbn?.packageName ?: return
+        if (pkg == packageName) return
+        scope.launch { delay(300); cleanupOrphanSummaries(pkg) }
     }
 
     private val saveMutex = Mutex()
 
     private suspend fun save(n: NotificationEntity) {
         saveMutex.withLock {
-            val dao = AppDatabase.getDatabase(applicationContext).notificationDao()
-            val last = dao.latestByKey(n.notificationKey)
-            when {
-                last == null -> dao.insertNotification(n)
-                last.title == n.title && last.text == n.text -> Unit          // đăng lại y hệt
-                last.title.shape() == n.title.shape() &&
-                        last.text.shape() == n.text.shape() ->
-                    dao.update(n.copy(id = last.id))                          // chỉ khác số
-                else -> dao.insertNotification(n)                             // nội dung thật sự khác
+            try {
+                val dao = AppDatabase.getDatabase(applicationContext).notificationDao()
+                val last = dao.latestByKey(n.notificationKey)
+                when {
+                    last == null -> {
+                        dao.insertNotification(n)
+                        android.util.Log.d(TAG, "Inserted new: ${n.packageName} | ${n.title}")
+                    }
+                    last.title == n.title && last.text == n.text -> {
+                        dao.update(n.copy(id= last.id))
+                        android.util.Log.d(TAG, "Skipped duplicate: ${n.packageName} | ${n.title}")
+                    }
+                    last.title.shape() == n.title.shape() &&
+                            last.text.shape() == n.text.shape() -> {
+                        dao.update(n.copy(id = last.id))
+                        android.util.Log.d(TAG, "Updated shaped: ${n.packageName} | ${n.title}")
+                    }
+                    else -> {
+                        dao.insertNotification(n)
+                        android.util.Log.d(TAG, "Inserted changed: ${n.packageName} | ${n.title}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Save failed for ${n.notificationKey}", e)
             }
         }
     }
 }
+
 
 private val DIGITS = Regex("\\d+([.,]\\d+)*")
 private fun String.shape() = replace(DIGITS, "#")
