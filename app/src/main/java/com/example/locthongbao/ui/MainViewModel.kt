@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.locthongbao.data.local.NotificationDao
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -57,6 +58,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearBlockedNotifications() {
         viewModelScope.launch(Dispatchers.IO) {
             dao.clearBlockedNotifications()
+        }
+    }
+
+    fun deleteAllowedGroup(packageName: String) {
+        viewModelScope.launch {
+            dao.deleteAllowedByPackage(packageName) // hoặc gọi qua repository nếu có lớp trung gian
+        }
+    }
+
+    fun deleteBlockedGroup(packageName: String) {
+        viewModelScope.launch {
+            dao.deleteBlockedByPackage(packageName)
         }
     }
 }

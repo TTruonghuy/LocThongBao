@@ -9,6 +9,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import java.util.Calendar
 import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
+
 
 // Lấy icon app từ packageName, lỗi thì trả null
 fun getAppIcon(packageName: String, packageManager: PackageManager): ImageBitmap? {
@@ -42,4 +45,25 @@ fun formatNotificationTime(postTime: Long): String {
         calendar.get(Calendar.HOUR_OF_DAY),
         calendar.get(Calendar.MINUTE)
     )
+}
+
+
+fun formatNotificationDateTime(postTime: Long): String {
+    if (postTime <= 0L) return ""
+
+    val locale = Locale("vi", "VN")
+    val targetCal = Calendar.getInstance(locale).apply { timeInMillis = postTime }
+    val todayCal = Calendar.getInstance(locale)
+
+    val isToday = targetCal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
+            targetCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR)
+
+    val timePart = SimpleDateFormat("HH:mm", locale).format(Date(postTime))
+    val datePart = if (isToday) {
+        "Hôm nay"
+    } else {
+        SimpleDateFormat("dd/MM", locale).format(Date(postTime))
+    }
+
+    return "$datePart · $timePart"
 }

@@ -1,20 +1,35 @@
 package com.example.locthongbao.ui.screens.notifications
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.locthongbao.ui.MainViewModel
-import com.example.locthongbao.ui.components.NotificationCardItem
+import com.example.locthongbao.ui.components.AppNotificationGroup
+import com.example.locthongbao.ui.components.AppNotificationGroupCard
+import com.example.locthongbao.ui.components.SwipeableGroupCard
+import com.example.locthongbao.ui.components.groupByApp
+import com.example.locthongbao.util.getAppIcon
+import kotlinx.coroutines.launch
+
+// Màu nền xám đồng bộ cho badge bộ lọc, tên app và thẻ app đang được chọn
+private val SharedBadgeGray = Color(0xFFE0E0E0)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,17 +37,70 @@ fun MainDashboardScreen(
     viewModel: MainViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    var showConfirmDialog by remember { mutableStateOf(false) }
-    val allowedNotifications by viewModel.allowedNotifications.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    // null = Tất cả; non-null = packageName của app đang được ưu tiên lên đầu
+    var selectedPackageFilter by remember { mutableStateOf<String?>(null) }
+
+    val allowedNotifications by viewModel.allowedNotifications.collectAsState()
     val listState = rememberLazyListState()
     val list = allowedNotifications
     val hasItems = !list.isNullOrEmpty()
 
+    val baseGroups = remember(list) { list?.groupByApp().orEmpty() }
+
+    // Nếu app đang lọc không còn trong danh sách (ví dụ vừa bị xoá) thì reset về Tất cả
+    LaunchedEffect(baseGroups, selectedPackageFilter) {
+        if (selectedPackageFilter != null && baseGroups.none { it.packageName == selectedPackageFilter }) {
+            selectedPackageFilter = null
+        }
+    }
+
+    // Đưa nhóm app được chọn lên đầu; khi chọn "Tất cả" giữ nguyên thứ tự theo thời gian mới nhất
+    val displayedGroups = remember(baseGroups, selectedPackageFilter) {
+        val targetPkg = selectedPackageFilter ?: return@remember baseGroups
+        val (matched, others) = baseGroups.partition { it.packageName == targetPkg }
+        matched + others
+    }
+
+    val activeFilterLabel = remember(baseGroups, selectedPackageFilter) {
+        if (selectedPackageFilter == null) {
+            "Tất cả"
+        } else {
+            baseGroups.find { it.packageName == selectedPackageFilter }?.appName ?: "Tất cả"
+        }
+    }
+
+    // Hạ nhẹ (20.dp) và lệch phải vừa đủ (14.dp) để không bị cắt viền dưới của khung Dialog
+    val rightHandedDialogModifier = Modifier
+        .fillMaxWidth()
+        .offset(x = 14.dp, y = 20.dp)
+
+    var revealedPackageName by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(listState.isScrollInProgress, showFilterDialog, showConfirmDialog) {
+        if ((listState.isScrollInProgress || showFilterDialog || showConfirmDialog) && revealedPackageName != null) {
+            revealedPackageName = null
+        }
+    }
+
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Xoá tất cả thông báo") },
+            modifier = rightHandedDialogModifier,
+            title = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Xoá tất cả thông báo",
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
             text = { Text("Bạn có chắc muốn xoá toàn bộ thông báo trong danh sách này không?") },
             confirmButton = {
                 TextButton(
@@ -52,31 +120,58 @@ fun MainDashboardScreen(
         )
     }
 
+    if (showFilterDialog) {
+        AppFilterDialog(
+            groups = baseGroups,
+            selectedPackageName = selectedPackageFilter,
+            modifier = rightHandedDialogModifier,
+            onDismiss = { showFilterDialog = false },
+            onSelectPackage = { pkg ->
+                selectedPackageFilter = pkg
+                showFilterDialog = false
+                // Đưa nhóm lên đầu và tự cuộn lên đầu danh sách để thấy ngay
+                coroutineScope.launch {
+                    listState.animateScrollToItem(index = 0)
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier.fillMaxSize()
     ) {
         CenterAlignedTopAppBar(
-            title = { Text("Thông báo") }
+            title = {
+                Text(
+                    text = "Thông báo",
+                    color = Color(0xFF1B5E20)
+                )
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = Color(0xFFF8FCF9),
+                titleContentColor = Color(0xFF1B5E20)
+            )
         )
 
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Tất cả: ${list?.size ?: 0}",
-                    style = MaterialTheme.typography.titleSmall
+                    text = "Tất cả: ${list?.size ?: 0} thông báo",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFF2E7D32)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 when {
-                    // null = đang load dữ liệu ban đầu từ Flow/DB
                     list == null -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -104,32 +199,295 @@ fun MainDashboardScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 88.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(bottom = 112.dp)
                         ) {
                             items(
-                                items = list,
-                                key = { item -> item.id }
-                            ) { item ->
-                                NotificationCardItem(item = item)
+                                items = displayedGroups,
+                                key = { group -> group.packageName }
+                            ) { group ->
+                                SwipeableGroupCard(
+                                    group = group,
+                                    isRevealed = revealedPackageName == group.packageName,
+                                    onRevealChange = { pkg, revealed ->
+                                        revealedPackageName = if (revealed) pkg else null
+                                    },
+                                    containerColor = Color(0xFFF8FCF9),
+                                    onViewAll = { selectedGroup ->
+                                        // TODO: Điều hướng sang trang chi tiết thông báo của selectedGroup.packageName
+                                    },
+                                    onDeleteGroup = { targetGroup ->
+                                        revealedPackageName = null
+                                        viewModel.deleteAllowedGroup(targetGroup.packageName)
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
 
+            // Cụm 2 nút dính sát mép phải: "Lọc ..." ở trên, "Xóa" ở dưới
             if (hasItems) {
-                ExtendedFloatingActionButton(
-                    onClick = { showConfirmDialog = true },
-                    icon = {
-
-                    },
-                    text = { Text("Xoá") },
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(bottom = 16.dp)
-                )
+                        .padding(bottom = 12.dp)
+                ) {
+                    EdgeDockedActionButton(
+                        textColor = Color.Black,
+                        onClick = { showFilterDialog = true }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Lọc",
+                                color = Color.Black,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+
+                            // Chỉ phần tên bộ lọc ($activeFilterLabel) có nền xám bên trong nút
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .background(
+                                        color = SharedBadgeGray,
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = activeFilterLabel,
+                                    color = Color.Black,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    EdgeDockedActionButton(
+                        textColor = MaterialTheme.colorScheme.error,
+                        onClick = { showConfirmDialog = true }
+                    ) {
+                        Text(
+                            text = "Xóa",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun EdgeDockedActionButton(
+    textColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(
+            topStart = 10.dp,
+            bottomStart = 10.dp,
+            topEnd = 0.dp,
+            bottomEnd = 0.dp
+        ),
+        shadowElevation = 2.dp,
+        modifier = modifier.height(36.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(start = 12.dp, end = 10.dp)
+        ) {
+            CompositionLocalProvider(LocalContentColor provides textColor) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppFilterDialog(
+    groups: List<AppNotificationGroup>,
+    selectedPackageName: String?,
+    onDismiss: () -> Unit,
+    onSelectPackage: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val totalCount = remember(groups) { groups.sumOf { it.count } }
+
+    Dialog(onDismissRequest = onDismiss) {
+        // Đặt heightIn(max = 420.dp) và offset nhẹ để giữ đủ khoảng thở cho viền/bóng dưới
+        Surface(
+            modifier = modifier.heightIn(max = 420.dp),
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+            shadowElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 12.dp)
+            ) {
+                Text(
+                    text = "Lọc theo ứng dụng",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Thẻ "Tất cả"
+                    item(key = "filter_all") {
+                        val isAllSelected = selectedPackageName == null
+                        FilterAppChipCard(
+                            appName = "Tất cả",
+                            count = totalCount,
+                            isSelected = isAllSelected,
+                            leadingContent = null,
+                            onClick = { onSelectPackage(null) }
+                        )
+                    }
+
+                    // Các thẻ ứng dụng đã có thông báo
+                    items(
+                        items = groups,
+                        key = { it.packageName }
+                    ) { group ->
+                        val isSelected = selectedPackageName == group.packageName
+                        val iconBitmap = remember(group.packageName) {
+                            getAppIcon(group.packageName, context.packageManager)
+                        }
+
+                        FilterAppChipCard(
+                            appName = group.appName,
+                            count = group.count,
+                            isSelected = isSelected,
+                            onClick = { onSelectPackage(group.packageName) },
+                            leadingContent = {
+                                if (iconBitmap != null) {
+                                    Image(
+                                        bitmap = iconBitmap,
+                                        contentDescription = group.appName,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.size(20.dp),
+                                        shape = RoundedCornerShape(5.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = group.appName.take(1).uppercase(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Nút Đóng
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Đóng")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterAppChipCard(
+    appName: String,
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    leadingContent: (@Composable () -> Unit)? = null
+) {
+    // Khi được chọn (target) đổi sang nền xám đồng bộ với badge bộ lọc / tên app
+    val cardColor = if (isSelected) {
+        SharedBadgeGray
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = cardColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (leadingContent != null) {
+                leadingContent()
+            }
+
+            Text(
+                text = appName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = Color.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$count thông báo",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
 }

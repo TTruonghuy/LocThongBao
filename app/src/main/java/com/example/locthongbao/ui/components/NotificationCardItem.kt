@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.locthongbao.data.local.NotificationEntity
+import com.example.locthongbao.util.formatNotificationDateTime
 import com.example.locthongbao.util.formatNotificationTime
 import com.example.locthongbao.util.getAppIcon
 
@@ -24,6 +25,9 @@ fun NotificationCardItem(item: NotificationEntity) {
     val reason = item.filterReason ?: ""
     val isSpam = item.isFiltered
 
+    val formattedTime = remember(item.postTime) {
+        formatNotificationDateTime(item.postTime)
+    }
     // Nhóm thông báo bị bỏ qua không qua lọc spam
     val isIgnored = reason == "Chạy ngầm" || reason == "Hệ thống" || reason == "Trống" || reason == "Thông báo tổng"
 
@@ -46,10 +50,6 @@ fun NotificationCardItem(item: NotificationEntity) {
         getAppIcon(item.packageName, context.packageManager)
     }
 
-    // Cache giờ hiển thị theo postTime
-    val formattedTime = remember(item.postTime) {
-        formatNotificationTime(item.postTime)
-    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -121,7 +121,8 @@ fun NotificationCardItem(item: NotificationEntity) {
                 Text(
                     text = formattedTime,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
+                    softWrap = false
                 )
             }
 

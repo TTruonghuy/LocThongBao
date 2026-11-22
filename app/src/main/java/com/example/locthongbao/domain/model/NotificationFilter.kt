@@ -1,89 +1,88 @@
 package com.example.locthongbao.domain.model
 
-import android.app.Notification
 import android.content.Context
 import com.example.locthongbao.R
 import com.example.locthongbao.data.local.NotificationEntity
 import java.text.Normalizer
-import kotlin.collections.flatten
 
 enum class FilterCategory {
     IGNORED,
     SPAM,
     PASSED
 }
+
 data class FilterResult(
     val category: FilterCategory,
     val reason: String
 )
 
-// Bỏ dấu + chữ thường: "Khuyến mãi" -> "khuyen mai"
 private val MARKS = Regex("\\p{Mn}+")
+
 fun String.normalizeVi(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
         .replace(MARKS, "")
         .replace('đ', 'd')
+        .replace(Regex("\\s+"), " ")
+        .trim()
 
-private val IGNORED_PACKAGES = setOf("android", "com.android.systemui")
-private val SIZE_PROGRESS =
-    Regex("\\d+([.,]\\d+)?\\s?[kmg]b?\\s*/\\s*\\d+([.,]\\d+)?\\s?[kmg]b?")
-
-private fun ignoreReason(i: NotificationEntity): String? = when {
-    i.isOngoing -> "Chạy ngầm"
-    (i.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0 -> "Foreground service"
-    i.isGroupSummary -> "Thông báo tổng"
-    i.packageName in IGNORED_PACKAGES -> "Hệ thống"
-    i.title.isBlank() && i.text.isBlank() -> "Trống"
-    SIZE_PROGRESS.containsMatchIn(i.text.normalizeVi()) -> "Tiến trình tải"
-    else -> null
-}
 object NotificationFilter {
+
     fun evaluate(context: Context, item: NotificationEntity): FilterResult {
         return try {
-            val titleStr = item.title ?: ""
-            val textStr = item.text ?: ""
-            val combinedText = "$titleStr $textStr".lowercase()
+            val titleRaw = item.title.orEmpty()
+            val textRaw = item.text.orEmpty()
 
-            // 1. Nhóm IGNORED (Màu 1): Chặn cứng thông báo hệ thống, tiến trình ngầm, trống
-            if (item.isOngoing) return FilterResult(FilterCategory.IGNORED, "Chạy ngầm")
+            // 1. Nhóm IGNORED: thông báo hệ thống, chạy ngầm, thông báo nhóm, rỗng nội dung
+            if (item.isOngoing) {
+                return FilterResult(FilterCategory.IGNORED, "Chạy ngầm")
+            }
             if (item.packageName == "android" || item.packageName.startsWith("com.android")) {
                 return FilterResult(FilterCategory.IGNORED, "Hệ thống")
             }
-            if (titleStr.isBlank() && textStr.isBlank()) {
+            if (titleRaw.isBlank() && textRaw.isBlank()) {
                 return FilterResult(FilterCategory.IGNORED, "Trống")
             }
-            if (item.isGroupSummary) return FilterResult(FilterCategory.IGNORED, "Thông báo tổng")
+            if (item.isGroupSummary) {
+                return FilterResult(FilterCategory.IGNORED, "Thông báo tổng")
+            }
 
+            val normalizedContent = "$titleRaw $textRaw".normalizeVi()
 
-
-            // 2. Lớp Whitelist (An toàn tuyệt đối) -> Xếp vào PASSED (Màu 3)
+            // 2. Lớp Whitelist: ưu tiên giữ an toàn thông báo quan trọng (OTP, giao dịch, đơn hàng)
             val safeKeywords = context.resources.getStringArray(R.array.whitelist_keywords)
-            if (safeKeywords.any { combinedText.contains(it) }) {
+            val matchedSafe = safeKeywords.any { kw ->
+                val nKw = kw.normalizeVi()
+                nKw.isNotEmpty() && normalizedContent.contains(nKw)
+            }
+            if (matchedSafe) {
                 return FilterResult(FilterCategory.PASSED, "An toàn (Whitelist)")
             }
 
-            // 3. Nhóm SPAM (Màu 2): Dính từ khóa rác / quảng cáo (Blacklist)
-            val allBlacklists = arrayOf(
-                context.resources.getStringArray(R.array.blacklist_explicit),
-                context.resources.getStringArray(R.array.blacklist_ecommerce),
-                context.resources.getStringArray(R.array.blacklist_finance),
-                context.resources.getStringArray(R.array.blacklist_telecom),
-                context.resources.getStringArray(R.array.blacklist_urgency),
-                context.resources.getStringArray(R.array.blacklist_social)
-            ).flatten()
+            // 3. Nhóm SPAM: đối chiếu các nhóm từ khóa quảng cáo / rác
+            val blacklistGroups = listOf(
+                "Thẻ quảng cáo" to R.array.blacklist_explicit,
+                "TMĐT / Khuyến mãi" to R.array.blacklist_ecommerce,
+                "Tài chính / Vay" to R.array.blacklist_finance,
+                "Viễn thông" to R.array.blacklist_telecom,
+                "Thôi thúc / FOMO" to R.array.blacklist_urgency,
+                "Mạng xã hội" to R.array.blacklist_social
+            )
 
-            if (allBlacklists.any { combinedText.contains(it) }) {
-                return FilterResult(FilterCategory.SPAM, "Quảng cáo / Rác")
+            for ((groupName, arrayResId) in blacklistGroups) {
+                val keywords = context.resources.getStringArray(arrayResId)
+                val matched = keywords.any { kw ->
+                    val nKw = kw.normalizeVi()
+                    nKw.isNotEmpty() && normalizedContent.contains(nKw)
+                }
+                if (matched) {
+                    return FilterResult(FilterCategory.SPAM, "Quảng cáo / Rác ($groupName)")
+                }
             }
 
-            // 4. Mặc định bình thường -> Xếp vào PASSED (Màu 3)
+            // 4. Mặc định hợp lệ
             FilterResult(FilterCategory.PASSED, "Bình thường")
-
-        } catch (e: Exception) {
-            // Nếu có lỗi, cho qua để không sập app
+        } catch (_: Exception) {
             FilterResult(FilterCategory.PASSED, "Lỗi bộ lọc (Cho phép qua)")
         }
     }
 }
-
-
