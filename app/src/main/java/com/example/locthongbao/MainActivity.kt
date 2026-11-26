@@ -13,9 +13,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.locthongbao.data.service.NotiListenerService
-import com.example.locthongbao.ui.components.MainAppContainer
+import com.example.locthongbao.ui.components.buttons.MainAppContainer
 import com.example.locthongbao.ui.permission.PermissionScreen
-import com.example.locthongbao.ui.screens.notifications.MainDashboardScreen
 import com.example.locthongbao.ui.theme.LocThongBaoTheme
 import com.example.locthongbao.util.PermissionUtil
 

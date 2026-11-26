@@ -137,6 +137,48 @@ fun MainDashboardScreen(
         )
     }
 
+    // Thêm state lưu nhóm đang mở xem tất cả
+    var detailGroup by remember { mutableStateOf<AppNotificationGroup?>(null) }
+
+    // Tự đóng trang chi tiết nếu nhóm bị xoá hết thông báo từ bên ngoài
+    LaunchedEffect(baseGroups, detailGroup) {
+        val currentPkg = detailGroup?.packageName ?: return@LaunchedEffect
+        if (baseGroups.none { it.packageName == currentPkg }) {
+            detailGroup = null
+        }
+    }
+
+    val activeDetailGroup = detailGroup
+    if (activeDetailGroup != null) {
+        val groupItems = remember(list, activeDetailGroup.packageName) {
+            list
+                .orEmpty()
+                .filter { it.packageName == activeDetailGroup.packageName }
+                .sortedByDescending { it.postTime }
+        }
+
+        // Lưu ý: dùng NotificationListScreen đã có title, onBack, showAppHeaderOnItem, onDeleteItem
+        // (hoặc nếu bạn chưa thêm các tham số đó vào NotificationListScreen thì thêm vào trước)
+        com.example.locthongbao.ui.components.NotificationListScreen(
+            notifications = groupItems,
+            emptyMessage = "Không còn thông báo nào trong nhóm này",
+            title = "${activeDetailGroup.appName} (${groupItems.size})",
+            onBack = { detailGroup = null },
+            showAppHeaderOnItem = false,
+            onClearAll = {
+                viewModel.deleteBlockedGroup(activeDetailGroup.packageName)
+                detailGroup = null
+            },
+            onDeleteItem = { item ->
+                viewModel.deleteNotificationById(item.id)
+                if (groupItems.size == 1) {
+                    detailGroup = null
+                }
+            }
+        )
+        return
+    }
+
     Column(
         modifier = modifier.fillMaxSize()
     ) {
@@ -144,12 +186,12 @@ fun MainDashboardScreen(
             title = {
                 Text(
                     text = "Thông báo",
-                    color = Color(0xFF1B5E20)
+                    //color = Color(0xFF1B5E20)
                 )
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = Color(0xFFF8FCF9),
-                titleContentColor = Color(0xFF1B5E20)
+               // containerColor = Color(0xFFF8FCF9),
+                //titleContentColor = Color(0xFF1B5E20)
             )
         )
 
@@ -167,7 +209,7 @@ fun MainDashboardScreen(
                 Text(
                     text = "Tất cả: ${list?.size ?: 0} thông báo",
                     style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFF2E7D32)
+                   // color = Color(0xFF2E7D32)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -214,7 +256,8 @@ fun MainDashboardScreen(
                                     },
                                     containerColor = Color(0xFFF8FCF9),
                                     onViewAll = { selectedGroup ->
-                                        // TODO: Điều hướng sang trang chi tiết thông báo của selectedGroup.packageName
+                                        revealedPackageName = null
+                                        detailGroup = selectedGroup
                                     },
                                     onDeleteGroup = { targetGroup ->
                                         revealedPackageName = null

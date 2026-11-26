@@ -72,4 +72,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dao.deleteBlockedByPackage(packageName)
         }
     }
+
+    fun deleteNotificationById(id: Long) {
+        viewModelScope.launch {
+            dao.deleteById(id)
+        }
+    }
 }

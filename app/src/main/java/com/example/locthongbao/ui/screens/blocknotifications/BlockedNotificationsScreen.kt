@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,9 +21,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+import com.example.locthongbao.ui.components.buttons.EdgeDockedActionButton
 import com.example.locthongbao.ui.MainViewModel
 import com.example.locthongbao.ui.components.AppNotificationGroup
-import com.example.locthongbao.ui.components.AppNotificationGroupCard
 import com.example.locthongbao.ui.components.SwipeableGroupCard
 import com.example.locthongbao.ui.components.groupByApp
 import com.example.locthongbao.util.getAppIcon
@@ -138,13 +140,62 @@ fun BlockedNotificationsScreen(
         )
     }
 
+    // Thêm state lưu nhóm đang mở xem tất cả
+    var detailGroup by remember { mutableStateOf<AppNotificationGroup?>(null) }
+
+    // Tự đóng trang chi tiết nếu nhóm bị xoá hết thông báo từ bên ngoài
+    LaunchedEffect(baseGroups, detailGroup) {
+        val currentPkg = detailGroup?.packageName ?: return@LaunchedEffect
+        if (baseGroups.none { it.packageName == currentPkg }) {
+            detailGroup = null
+        }
+    }
+
+    val activeDetailGroup = detailGroup
+    if (activeDetailGroup != null) {
+        val groupItems = remember(list, activeDetailGroup.packageName) {
+            list
+                .orEmpty()
+                .filter { it.packageName == activeDetailGroup.packageName }
+                .sortedByDescending { it.postTime }
+        }
+
+        // Lưu ý: dùng NotificationListScreen đã có title, onBack, showAppHeaderOnItem, onDeleteItem
+        // (hoặc nếu bạn chưa thêm các tham số đó vào NotificationListScreen thì thêm vào trước)
+        com.example.locthongbao.ui.components.NotificationListScreen(
+            notifications = groupItems,
+            emptyMessage = "Không còn thông báo nào trong nhóm này",
+            title = "${activeDetailGroup.appName} (${groupItems.size})",
+            onBack = { detailGroup = null },
+            showAppHeaderOnItem = false,
+            onClearAll = {
+                viewModel.deleteBlockedGroup(activeDetailGroup.packageName)
+                detailGroup = null
+            },
+            onDeleteItem = { item ->
+                viewModel.deleteNotificationById(item.id)
+                if (groupItems.size == 1) {
+                    detailGroup = null
+                }
+            }
+        )
+        return
+    }
+
     Column(
         modifier = modifier.fillMaxSize()
     ) {
         CenterAlignedTopAppBar(
             title = {
-                Text(text = "Đã lọc")
-            }
+                Text(
+                    text = "Đã lọc",
+                    //color = Color(0xFF1B5E20)
+                )
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                //containerColor = Color(0xFFF8FCF9),
+                titleContentColor = Color(0xFFF44336)
+            )
         )
 
         Box(
@@ -160,7 +211,8 @@ fun BlockedNotificationsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Đã lọc: ${list?.size ?: 0} thông báo",
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFFF44336)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -207,7 +259,8 @@ fun BlockedNotificationsScreen(
                                     },
                                     containerColor = Color(0xFFFFFAFA),
                                     onViewAll = { selectedGroup ->
-                                        // TODO: Điều hướng sang trang chi tiết thông báo của selectedGroup.packageName
+                                        revealedPackageName = null
+                                        detailGroup = selectedGroup
                                     },
                                     onDeleteGroup = { targetGroup ->
                                         revealedPackageName = null
@@ -288,36 +341,7 @@ fun BlockedNotificationsScreen(
 }
 
 @Composable
-private fun EdgeDockedActionButton(
-    textColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(
-            topStart = 10.dp,
-            bottomStart = 10.dp,
-            topEnd = 0.dp,
-            bottomEnd = 0.dp
-        ),
-        shadowElevation = 2.dp,
-        modifier = modifier.height(36.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(start = 12.dp, end = 10.dp)
-        ) {
-            CompositionLocalProvider(LocalContentColor provides textColor) {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-private fun BlockedAppFilterDialog(
+ private fun BlockedAppFilterDialog(
     groups: List<AppNotificationGroup>,
     selectedPackageName: String?,
     onDismiss: () -> Unit,
