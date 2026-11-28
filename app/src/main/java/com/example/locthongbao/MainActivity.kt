@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    val canEnterApp = hasNotificationAccess && hasBatteryIgnore && enteredApp
+                    val canEnterApp = hasNotificationAccess && hasBatteryIgnore
 
                     if (!canEnterApp) {
                         PermissionScreen(
@@ -70,7 +70,6 @@ class MainActivity : ComponentActivity() {
                                 runCatching {
                                     NotiListenerService.reviveService(this@MainActivity)
                                 }
-                                enteredApp = true
                             }
                         )
                     } else {
