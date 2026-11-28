@@ -114,7 +114,8 @@ class NotiListenerService : NotificationListenerService() {
             color = n.color,
             extrasJson = null,
             isFiltered = false,
-            filterReason = ""
+            filterReason = "",
+            isManualOverride = false
         )
     }
 

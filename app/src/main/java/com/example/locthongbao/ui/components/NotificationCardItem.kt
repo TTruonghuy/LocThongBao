@@ -32,6 +32,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val SwipeDeleteRed = Color(0xFFC62828)
+private val SwipeMarkSpamOrange = Color(0xFFE65100)
+private val SwipeMarkSafeGreen = Color(0xFF2E7D32)
 
 @Composable
 fun NotificationCardItem(
@@ -39,6 +41,8 @@ fun NotificationCardItem(
     modifier: Modifier = Modifier,
     showAppHeader: Boolean = true,
     onDelete: (() -> Unit)? = null,
+    onToggleSpam: (() -> Unit)? = null,
+    isBlockedScreen: Boolean = false,
     isRevealed: Boolean = false,
     onRevealChange: ((revealed: Boolean) -> Unit)? = null
 ) {
@@ -74,13 +78,11 @@ fun NotificationCardItem(
         getAppIcon(item.packageName, context.packageManager)
     }
 
-    // Chỉ bật kéo sang trái khi có hành động xoá
-    val canSwipe = onDelete != null
-    val revealWidthDp = 76.dp
+    val canSwipe = onDelete != null || onToggleSpam != null
+    val revealWidthDp = 106.dp
     val revealWidthPx = with(density) { revealWidthDp.toPx() }
     val touchSlopPx = with(density) { 14.dp.toPx() }
 
-    // State nội bộ nếu nơi gọi không quản lý revealed tập trung
     var internalRevealed by remember(item.id) { mutableStateOf(false) }
     val effectiveRevealed = if (onRevealChange != null) isRevealed else internalRevealed
 
@@ -91,7 +93,6 @@ fun NotificationCardItem(
             internalRevealed = next
         }
     }
-
 
     val offsetX = remember(item.id) { Animatable(0f) }
 
@@ -107,7 +108,6 @@ fun NotificationCardItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
     ) {
-        // Lớp nền nút "Xoá" hiện ra ở bên phải khi kéo thẻ sang trái
         if (canSwipe) {
             Box(
                 contentAlignment = Alignment.CenterEnd,
@@ -116,21 +116,45 @@ fun NotificationCardItem(
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                     .padding(end = 6.dp)
             ) {
-                SwipeActionButton(
-                    text = "Xoá",
-                    textColor = SwipeDeleteRed,
-                    enabled = effectiveRevealed,
-                    height = 40.dp,
-                    containerColor = Color.White,
-                    onClick = {
-                        setRevealed(false)
-                        onDelete()
-                    },
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.width(revealWidthDp - 10.dp)
-                )
+                ) {
+                    if (onToggleSpam != null) {
+                        SwipeActionButton(
+                            text = if (isBlockedScreen) "Không phải rác" else "Đây là rác",
+                            textColor = if (isBlockedScreen) SwipeMarkSafeGreen else SwipeMarkSpamOrange,
+                            enabled = effectiveRevealed,
+                            height = 34.dp,
+                            containerColor = Color.White,
+                            onClick = {
+                                setRevealed(false)
+                                onToggleSpam()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (onDelete != null) {
+                        SwipeActionButton(
+                            text = "Xoá",
+                            textColor = SwipeDeleteRed,
+                            enabled = effectiveRevealed,
+                            height = 34.dp,
+                            containerColor = Color.White,
+                            onClick = {
+                                setRevealed(false)
+                                onDelete()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         }
 
+        // Phần Card chính giữ nguyên như code của bạn
         // Lớp thẻ chính trượt ngang sang trái
         Card(
             modifier = Modifier
@@ -278,14 +302,14 @@ fun NotificationCardItem(
                     )
                 }
 
-                if (!item.filterReason.isNullOrBlank()) {
-                    Text(
-                        text = "Phân loại: ${item.filterReason}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = badgeColor,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+//                if (!item.filterReason.isNullOrBlank()) {
+//                    Text(
+//                        text = "Phân loại: ${item.filterReason}",
+//                        style = MaterialTheme.typography.labelSmall,
+//                        color = badgeColor,
+//                        fontWeight = FontWeight.SemiBold
+//                    )
+//                }
             }
         }
     }

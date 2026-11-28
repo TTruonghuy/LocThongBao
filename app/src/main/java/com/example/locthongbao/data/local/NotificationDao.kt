@@ -58,4 +58,19 @@ interface NotificationDao {
     @Query("DELETE FROM notifications WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query(
+        """
+    UPDATE notifications
+    SET isFiltered = :isFiltered,
+        filterReason = :reason,
+        isManualOverride = 1
+    WHERE id = :id
+    """
+    )
+    suspend fun updateManualClassification(
+        id: Long,
+        isFiltered: Boolean,
+        reason: String
+    )
+
 }

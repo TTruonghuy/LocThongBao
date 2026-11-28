@@ -29,17 +29,27 @@ class MainActivity : ComponentActivity() {
                 val lifecycleOwner = LocalLifecycleOwner.current
 
                 val isServiceRunning by NotiListenerService.isServiceRunning.collectAsState()
-                val isGranted = PermissionUtil.isNotificationListenerEnable(this)
 
-                var hasPermission by remember {
+                var hasNotificationAccess by remember {
                     mutableStateOf(PermissionUtil.isNotificationListenerEnable(context))
                 }
+                var hasBatteryIgnore by remember {
+                    mutableStateOf(PermissionUtil.isIgnoringBatteryOptimizations(context))
+                }
+                var enteredApp by remember { mutableStateOf(false) }
 
-                // Kiểm tra lại quyền khi quay lại app từ màn hình Cài đặt hệ thống
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
                         if (event == Lifecycle.Event.ON_RESUME) {
-                            hasPermission = PermissionUtil.isNotificationListenerEnable(context)
+                            val granted = PermissionUtil.isNotificationListenerEnable(context)
+                            val batteryOk = PermissionUtil.isIgnoringBatteryOptimizations(context)
+                            hasNotificationAccess = granted
+                            hasBatteryIgnore = batteryOk
+
+                            // Nếu mất quyền thì quay lại màn xin quyền
+                            if (!granted || !batteryOk) {
+                                enteredApp = false
+                            }
                         }
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
@@ -51,12 +61,16 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Thiếu quyền hoặc service chưa chạy thì giữ ở màn xin quyền
-                    if (!hasPermission || !isGranted || !isServiceRunning) {
+                    val canEnterApp = hasNotificationAccess && hasBatteryIgnore && enteredApp
+
+                    if (!canEnterApp) {
                         PermissionScreen(
                             isServiceRunning = isServiceRunning,
                             onPermissionGranted = {
-                                NotiListenerService.reviveService(this)
+                                runCatching {
+                                    NotiListenerService.reviveService(this@MainActivity)
+                                }
+                                enteredApp = true
                             }
                         )
                     } else {

@@ -190,14 +190,15 @@ fun SwipeableGroupCard(
     onRevealChange: (packageName: String?, revealed: Boolean) -> Unit,
     onViewAll: (AppNotificationGroup) -> Unit,
     onDeleteGroup: (AppNotificationGroup) -> Unit,
-    onPinGroup: (AppNotificationGroup) -> Unit = {},
+    onToggleSpamGroup: (AppNotificationGroup) -> Unit = {},
     containerColor: Color = MaterialTheme.colorScheme.surface,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isBlockedScreen: Boolean = false
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
-    val revealWidthDp = 82.dp
+    val revealWidthDp = 104.dp
     val revealWidthPx = with(density) { revealWidthDp.toPx() }
     val touchSlopPx = with(density) { 14.dp.toPx() }
 
@@ -237,25 +238,25 @@ fun SwipeableGroupCard(
                     .width(revealWidthDp - 10.dp)
             ) {
                 // Nút "Ghim" (tông dịu, chưa làm chức năng ghim)
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
-                        .clickable(enabled = isRevealed) {
-                            onRevealChange(group.packageName, false)
-                            onPinGroup(group)
-                        }
-                ) {
-                    Text(
-                        text = "Ghim",
-                        color = Color.Black,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+//                Box(
+//                    contentAlignment = Alignment.Center,
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(36.dp)
+//                        .clip(RoundedCornerShape(8.dp))
+//                        .background(Color.White)
+//                        .clickable(enabled = isRevealed) {
+//                            onRevealChange(group.packageName, false)
+//                            onToggleSpamGroup(group)
+//                        }
+//                ) {
+////                    Text(
+////                        text = if (isBlockedScreen) "Không phải rác" else "Đây là rác",
+////                        color = Color.Black,
+////                        style = MaterialTheme.typography.labelMedium,
+////                        fontWeight = FontWeight.SemiBold
+////                    )
+//                }
 
                 // Nút "Xoá" (pastel đỏ nhạt dịu mắt, cao hơn nút Ghim, giữ nguyên chức năng xoá)
                 Box(
@@ -434,15 +435,15 @@ private fun GroupedNotificationRow(
                 )
             }
 
-            AnimatedVisibility(visible = isExpanded && !item.filterReason.isNullOrBlank()) {
-                Text(
-                    text = "Phân loại: ${item.filterReason}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (item.isFiltered) Color(0xFFEF5350) else Color(0xFF2E7D32),
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
+//            AnimatedVisibility(visible = isExpanded && !item.filterReason.isNullOrBlank()) {
+//                Text(
+//                    text = "Phân loại: ${item.filterReason}",
+//                    style = MaterialTheme.typography.labelSmall,
+//                    color = if (item.isFiltered) Color(0xFFEF5350) else Color(0xFF2E7D32),
+//                    fontWeight = FontWeight.Medium,
+//                    modifier = Modifier.padding(top = 2.dp)
+//                )
+//            }
         }
     }
 }

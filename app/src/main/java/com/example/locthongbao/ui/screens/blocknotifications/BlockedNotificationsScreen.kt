@@ -1,5 +1,6 @@
 package com.example.locthongbao.ui.screens.blocknotifications
 
+import android.app.Notification
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.locthongbao.data.local.NotificationEntity
 
 import com.example.locthongbao.ui.components.buttons.EdgeDockedActionButton
 import com.example.locthongbao.ui.MainViewModel
@@ -177,7 +179,14 @@ fun BlockedNotificationsScreen(
                 if (groupItems.size == 1) {
                     detailGroup = null
                 }
-            }
+            },
+            onToggleSpamItem = { item ->
+                viewModel.onToggleSpamItem(item)
+                if (groupItems.size == 1) {
+                    detailGroup = null
+                }
+            },
+            isBlockedScreen = true
         )
         return
     }
@@ -265,7 +274,8 @@ fun BlockedNotificationsScreen(
                                     onDeleteGroup = { targetGroup ->
                                         revealedPackageName = null
                                         viewModel.deleteBlockedGroup(targetGroup.packageName)
-                                    }
+                                    },
+                                   // isBlockedScreen = true
                                 )
                             }
                         }

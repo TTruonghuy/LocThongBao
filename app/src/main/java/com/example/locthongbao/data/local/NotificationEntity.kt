@@ -38,5 +38,6 @@ data class NotificationEntity (
     val extrasJson: String?,
 
     val isFiltered: Boolean,
-    val filterReason: String
+    val filterReason: String,
+    val isManualOverride: Boolean = false
 )

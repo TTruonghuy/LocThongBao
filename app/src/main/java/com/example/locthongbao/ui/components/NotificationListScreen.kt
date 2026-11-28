@@ -46,7 +46,9 @@ fun NotificationListScreen(
     title: String? = null,
     onBack: (() -> Unit)? = null,
     showAppHeaderOnItem: Boolean = true,
-    onDeleteItem: ((NotificationEntity) -> Unit)? = null
+    onDeleteItem: ((NotificationEntity) -> Unit)? = null,
+    onToggleSpamItem: ((NotificationEntity) -> Unit)? = null,
+    isBlockedScreen: Boolean = false
 ) {
     var showConfirmDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -141,7 +143,14 @@ fun NotificationListScreen(
                                     revealedItemId = null
                                     deleteCallback(item)
                                 }
-                            }
+                            },
+                            onToggleSpam = onToggleSpamItem?.let { toggleCallback ->
+                                {
+                                    revealedItemId = null
+                                    toggleCallback(item)
+                                }
+                            },
+                            isBlockedScreen = isBlockedScreen
                         )
                     }
                 }

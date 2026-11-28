@@ -174,7 +174,9 @@ fun MainDashboardScreen(
                 if (groupItems.size == 1) {
                     detailGroup = null
                 }
-            }
+            },
+            onToggleSpamItem = { item -> viewModel.onToggleSpamItem(item) },
+            isBlockedScreen = false
         )
         return
     }

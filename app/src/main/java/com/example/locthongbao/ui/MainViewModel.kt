@@ -63,7 +63,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteAllowedGroup(packageName: String) {
         viewModelScope.launch {
-            dao.deleteAllowedByPackage(packageName) // hoặc gọi qua repository nếu có lớp trung gian
+            dao.deleteAllowedByPackage(packageName)
         }
     }
 
@@ -78,4 +78,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dao.deleteById(id)
         }
     }
+
+
+    fun onToggleSpamItem(item: NotificationEntity) {
+        viewModelScope.launch {
+            val nextFiltered = !item.isFiltered
+            val nextReason = if (nextFiltered) {
+                "Người dùng đánh dấu: Rác"
+            } else {
+                "Người dùng đánh dấu: Bình thường"
+            }
+            // Gọi qua repository hoặc dao tùy cấu trúc project của bạn:
+            dao.updateManualClassification(
+                id = item.id,
+                isFiltered = nextFiltered,
+                reason = nextReason
+            )
+        }
+    }
+
+
 }
